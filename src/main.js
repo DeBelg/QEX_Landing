@@ -1,7 +1,7 @@
 import anime from 'animejs';
 
 import { mountGlobalSea } from './lib/waves-fx.js';
-import { mountElectron } from './lib/electron-fx.js';
+import { mountGlobeMirror } from './lib/globe-mirror-fx.js';
 
 /* ---------------------------------------------------------------------------
    Footer year
@@ -12,7 +12,7 @@ document.querySelectorAll('[data-year]').forEach((el) => {
 });
 
 /* ---------------------------------------------------------------------------
-   One full-viewport sea (#global-sea) + per-card electron canvases.
+   One full-viewport sea (#global-sea) + team card globes (mirror hero state).
    --------------------------------------------------------------------------- */
 
 const globalSea = document.getElementById('global-sea');
@@ -20,8 +20,8 @@ if (globalSea) {
   mountGlobalSea(globalSea);
 }
 
-document.querySelectorAll('[data-fx="electron"]').forEach((el) => {
-  mountElectron(el);
+document.querySelectorAll('[data-fx="globe"]').forEach((el) => {
+  mountGlobeMirror(el);
 });
 
 /* ---------------------------------------------------------------------------

@@ -1,11 +1,9 @@
 /**
  * **Global sea** — one fixed full-viewport canvas, one continuous wave field
- * in document space (scroll depth). No per-section seams.
+ * in document space (scroll depth).
  *
- * - Phase / sag use `docY = scrollY + viewportY` so the raster is a single
- *   scrollable “sheet” of waves.
- * - Mass + warp only while `#view-a` intersects the viewport; mass position
- *   follows view A in screen space.
+ * Mesh sampling **overscans** past the viewport so crests / warps never pull
+ * the surface inward enough to expose empty black at the edges.
  */
 
 import {
@@ -14,6 +12,8 @@ import {
   prefersReducedMotion,
 } from './canvas-utils.js';
 import { drawShadedSphere } from './sphere.js';
+import { drawWireframeParticleGlobe } from './wireframe-globe.js';
+import { setHeroGlobeMirrorState } from './hero-globe-state.js';
 
 const TINTS = [
   [76, 201, 255],
@@ -29,23 +29,123 @@ function scrollDepth01ForLanding(el) {
   return Math.max(0, Math.min(1, (vh - r.top) / (vh + r.height)));
 }
 
+/** Fraction of view A’s height that intersects the viewport (0 = off-screen). */
+function viewAViewportFraction(el) {
+  if (!el) return 0;
+  const ar = el.getBoundingClientRect();
+  const vh = window.innerHeight || 1;
+  const visTop = Math.max(0, ar.top);
+  const visBot = Math.min(vh, ar.bottom);
+  const visH = Math.max(0, visBot - visTop);
+  return Math.min(1, visH / Math.max(8, ar.height));
+}
+
+/** Smoothstep: zero 1st derivative at 0 and 1 — avoids a linear “kink” in warp fade. */
+function smoothstep01(t) {
+  const x = Math.max(0, Math.min(1, t));
+  return x * x * (3 - 2 * x);
+}
+
 /**
- * Mass in **viewport** px, only valid when view A crosses the screen.
- * @returns {null | { cx, cy, R, strength, norm }}
+ * Normalized document scroll 0 = top, 1 = bottom (max scroll depth).
  */
-function landingMass(viewA, w, h, depth01) {
+function docScrollT(scrollY) {
+  const vh = window.innerHeight || 1;
+  const doc = document.documentElement;
+  const scrollMax = Math.max(1, doc.scrollHeight - vh);
+  const t = Math.max(0, Math.min(1, scrollY / scrollMax));
+  return { scrollT: t, scrollMax };
+}
+
+/**
+ * Ease that accelerates like gravity: slow at surface, faster mid descent.
+ */
+function sinkEase01(t) {
+  const x = Math.max(0, Math.min(1, t));
+  return 1 - Math.pow(1 - x, 1.72);
+}
+
+/**
+ * Mass pose + warp. Scroll drives a long sink through the viewport (ball in a sea)
+ * plus lateral drift; roll angle follows distance scrolled.
+ * `visGlobe` stays strong through the journey, then tapers near max depth.
+ * @returns {null | { cx, cy, R, strength, norm, vis, visGlobe, warpFade, driftX, scrollT, rollAngle }}
+ */
+function landingMass(viewA, w, h, depth01, scrollY, scrollT) {
   if (!viewA) return null;
   const ar = viewA.getBoundingClientRect();
-  const vh = window.innerHeight;
-  if (ar.bottom <= 4 || ar.top >= vh - 4) return null;
+  const vh = window.innerHeight || 1;
+  const vis = viewAViewportFraction(viewA);
+  const sinkProgress = sinkEase01(scrollT);
+  const warpFade = Math.min(1, smoothstep01(vis) + scrollT * 0.88);
 
-  const cx = ar.left + ar.width * 0.5;
+  /** Hero at rest: treat globe as fully visible even if `vis` is 0 on first layout frames. */
+  const sectionBottomOk = ar.bottom > vh * 0.22;
+  /** Before first layout, rects are often 0×0 — `bottom` is then 0 and would suppress the globe. */
+  const atTopAwaitingLayout =
+    scrollY < 2 && ar.top < vh * 0.98 && ar.height < 32;
+  const topBoost =
+    scrollY < 160 && (sectionBottomOk || atTopAwaitingLayout) ? 1 : 0;
+  /** Keep globe visible while it “sinks” through the page, not only when #view-a intersects. */
+  const sinkingViz = scrollT > 0.004 ? 0.7 : 0;
+  const rawGlobe = Math.min(1, Math.max(vis, topBoost, sinkingViz));
+  const tailFade =
+    scrollT <= 0.88 ? 1 : Math.max(0, 1 - (scrollT - 0.88) / 0.12);
+  const visGlobe = rawGlobe * tailFade;
+
   const m = Math.min(ar.width, ar.height, Math.min(w, h));
-  const cy = ar.top + ar.height * (0.26 + depth01 * 0.42);
-  const R = Math.max(16, m * (0.125 - depth01 * 0.038));
-  const strength = m * (0.22 + depth01 * 0.78);
+  const narrow = w < 560;
+  const R = Math.max(
+    22,
+    m * (0.175 - depth01 * 0.048) * (1 - sinkProgress * 0.06)
+  );
+
+  /** Viewport: start on the vertical centerline, vertically centered; sink toward bottom with scroll. */
+  const padY = R + 18;
+  const startY = h * 0.5;
+  const endY = Math.max(startY + 40, h - padY - 10);
+  let cy = startY + (endY - startY) * sinkProgress;
+
+  const ampX = narrow
+    ? Math.min(40, Math.max(80, ar.width) * 0.11)
+    : Math.min(120, Math.max(160, ar.width) * 0.19);
+  const driftDamp = 1 - sinkProgress * 0.45;
+  const driftX = Math.sin(scrollY * 0.00235 + 0.4) * ampX * driftDamp;
+
+  const pad = R + 14;
+  let cx = w * 0.5 + driftX;
+  cx = Math.max(pad, Math.min(w - pad, cx));
+  cy = Math.max(padY, Math.min(h - padY, cy));
+
+  /** Roll as if contact with the sea: radians ~ arc length / radius. */
+  const rollAngle = scrollY * (2.15 / Math.max(R, 24));
+
+  const baseStrength = m * (0.22 + depth01 * 0.78);
+  const strength = baseStrength * warpFade;
   const norm = Math.min(w, h);
-  return { cx, cy, R, strength, norm };
+  return {
+    cx,
+    cy,
+    R,
+    strength,
+    norm,
+    vis,
+    visGlobe,
+    warpFade,
+    driftX,
+    scrollT,
+    rollAngle,
+  };
+}
+
+function syncHeroTextSide(viewA, layout) {
+  if (!viewA) return;
+  if (!layout || layout.visGlobe < 0.03 || layout.scrollT > 0.12) {
+    viewA.dataset.textSide = 'center';
+    return;
+  }
+  const t = layout.driftX > 12 ? 'left' : layout.driftX < -12 ? 'right' : 'center';
+  viewA.dataset.textSide = t;
 }
 
 function applyMassWarp(px, py, grav) {
@@ -63,8 +163,23 @@ function applyMassWarp(px, py, grav) {
   };
 }
 
+/** Extra horizontal / vertical sampling margin so displaced waves never uncover black. */
+function overscanPad(w, h, grav) {
+  const ampEst = w * 0.09 + h * 0.035;
+  const warpEst = grav ? Math.min(w, h) * 0.08 : 0;
+  const pad = ampEst + warpEst + 48;
+  return { padX: pad, padY: pad * 0.85 };
+}
+
+/** Depth 0..1 for amplitude shaping; clamp when sampling outside viewport band. */
+function depthForSample(vy, h) {
+  if (vy <= 0) return 0;
+  if (vy >= h) return 1;
+  return vy / h;
+}
+
 /**
- * @param {number} vx — viewport x
+ * @param {number} vx — viewport x (may be outside 0..w when overscanning)
  * @param {number} vy — viewport y
  * @param {number} docY — document Y = scrollY + vy
  */
@@ -77,7 +192,7 @@ function seaField(vx, vy, t, w, h, grav, docY) {
   const main = Math.sin(theta);
   const tail = 0.078 * Math.sin(theta * 1.16 + 0.28);
 
-  const depth = vy / h;
+  const depth = depthForSample(vy, h);
   const ampH = w * 0.078 * (0.58 + depth * 0.42);
   const horizontal = (main + tail) * ampH;
 
@@ -102,88 +217,19 @@ function seaField(vx, vy, t, w, h, grav, docY) {
 
   const crest = Math.max(0, main);
 
+  const tintRaw =
+    Math.floor(vx * 0.018) + Math.floor(docY * 0.012);
+  const tintIdx =
+    ((tintRaw % TINTS.length) + TINTS.length) % TINTS.length;
+
   return {
     px,
     py,
     crest,
-    tint: TINTS[
-      (Math.floor(vx * 0.018) + Math.floor(docY * 0.012)) % TINTS.length
-    ],
+    tint: TINTS[tintIdx],
   };
 }
 
-function drawMassFieldBackdrop(ctx, cx, cy, R, depth01, w, h) {
-  const g = ctx.createRadialGradient(cx, cy, R * 0.2, cx, cy, R * 4.2);
-  const a = 0.04 + depth01 * 0.1;
-  g.addColorStop(0, `rgba(20, 70, 120, ${a * 1.2})`);
-  g.addColorStop(0.35, `rgba(10, 40, 80, ${a * 0.55})`);
-  g.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, w, h);
-}
-
-function drawSpinningMass(
-  ctx,
-  cx,
-  cy,
-  R,
-  angle,
-  depth01,
-  reduced,
-  w,
-  h
-) {
-  drawMassFieldBackdrop(ctx, cx, cy, R, depth01, w, h);
-
-  const coreRgb = [28, 98, 158];
-  const alpha = 0.88 + depth01 * 0.1;
-  const spec = 0.38 + (1 - depth01) * 0.42;
-  drawShadedSphere(ctx, cx, cy, R, coreRgb, alpha, spec);
-
-  if (reduced) return;
-
-  ctx.save();
-  ctx.beginPath();
-  ctx.arc(cx, cy, R * 0.992, 0, Math.PI * 2);
-  ctx.clip();
-  ctx.translate(cx, cy);
-  ctx.rotate(angle);
-
-  const lineA = 0.14 + (1 - depth01) * 0.12;
-  ctx.strokeStyle = `rgba(180, 230, 255, ${lineA})`;
-  ctx.lineWidth = 1.05;
-
-  const meridians = 10;
-  for (let i = 0; i < meridians; i++) {
-    ctx.save();
-    ctx.rotate((i / meridians) * Math.PI * 2);
-    ctx.beginPath();
-    ctx.moveTo(0, -R * 0.98);
-    ctx.lineTo(0, R * 0.98);
-    ctx.stroke();
-    ctx.restore();
-  }
-
-  ctx.strokeStyle = `rgba(120, 200, 255, ${0.08 + (1 - depth01) * 0.06})`;
-  ctx.lineWidth = 0.65;
-  for (let e = 0; e < 4; e++) {
-    ctx.beginPath();
-    ctx.ellipse(0, 0, R * (0.28 + e * 0.18), R * 0.98, 0, 0, Math.PI * 2);
-    ctx.stroke();
-  }
-
-  ctx.restore();
-
-  ctx.strokeStyle = `rgba(140, 220, 255, ${0.18 + (1 - depth01) * 0.15})`;
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.arc(cx, cy, R + 0.5, -0.4, Math.PI * 0.85);
-  ctx.stroke();
-}
-
-/**
- * One continuous sea across the whole page scroll; mass only with view A.
- */
 export function mountGlobalSea(canvas) {
   const ctx = canvas.getContext('2d');
   const reduced = prefersReducedMotion();
@@ -192,16 +238,16 @@ export function mountGlobalSea(canvas) {
   let h = 0;
   let dpr = 1;
 
-  let nHoriz = 6;
-  let nVert = 7;
+  let nHoriz = 9;
+  let nVert = 12;
   let sampleDx = 3.5;
   let sampleDy = 4;
 
   function build() {
     ({ w, h, dpr } = fitCanvas(canvas));
     const narrow = w < 480;
-    nHoriz = narrow ? 5 : 6;
-    nVert = narrow ? 6 : 8;
+    nHoriz = narrow ? 8 : 9;
+    nVert = narrow ? 9 : 12;
     sampleDx = Math.max(2.8, Math.min(4.5, w / 175));
     sampleDy = Math.max(3.2, Math.min(5, h / 150));
   }
@@ -227,7 +273,15 @@ export function mountGlobalSea(canvas) {
     return m + (j / (nVert - 1)) * span;
   }
 
-  function drawHorizontalLines(t, lineRgb, lineAlpha, lineWidth, grav, scrollY) {
+  function drawHorizontalLines(
+    t,
+    lineRgb,
+    lineAlpha,
+    lineWidth,
+    grav,
+    scrollY,
+    padX
+  ) {
     const [lr, lg, lb] = lineRgb;
     ctx.lineJoin = 'round';
     ctx.lineCap = 'round';
@@ -239,7 +293,7 @@ export function mountGlobalSea(canvas) {
       const docY0 = scrollY + y0;
       ctx.beginPath();
       let first = true;
-      for (let x = 0; x <= w + 0.5; x += sampleDx) {
+      for (let x = -padX; x <= w + padX + 0.5; x += sampleDx) {
         const s = seaField(x, y0, t, w, h, grav, docY0);
         if (first) {
           ctx.moveTo(s.px, s.py);
@@ -252,7 +306,15 @@ export function mountGlobalSea(canvas) {
     }
   }
 
-  function drawVerticalLines(t, lineRgb, lineAlpha, lineWidth, grav, scrollY) {
+  function drawVerticalLines(
+    t,
+    lineRgb,
+    lineAlpha,
+    lineWidth,
+    grav,
+    scrollY,
+    padY
+  ) {
     const [lr, lg, lb] = lineRgb;
     ctx.lineWidth = lineWidth;
     ctx.strokeStyle = `rgba(${lr}, ${lg}, ${lb}, ${lineAlpha * 0.85})`;
@@ -261,7 +323,7 @@ export function mountGlobalSea(canvas) {
       const x0 = xRestForCol(j);
       ctx.beginPath();
       let first = true;
-      for (let y = 0; y <= h + 0.5; y += sampleDy) {
+      for (let y = -padY; y <= h + padY + 0.5; y += sampleDy) {
         const docY = scrollY + y;
         const s = seaField(x0, y, t, w, h, grav, docY);
         if (first) {
@@ -275,12 +337,19 @@ export function mountGlobalSea(canvas) {
     }
   }
 
-  function drawSparseNodes(t, sphereEvery, baseRad, grav, scrollY) {
+  function drawSparseNodes(
+    t,
+    sphereEvery,
+    baseRad,
+    grav,
+    scrollY,
+    padX
+  ) {
     for (let i = 0; i < nHoriz; i++) {
       const y0 = yRestForLine(i);
       const docY0 = scrollY + y0;
       let step = 0;
-      for (let x = 0; x <= w + 0.5; x += sampleDx) {
+      for (let x = -padX; x <= w + padX + 0.5; x += sampleDx) {
         const s = seaField(x, y0, t, w, h, grav, docY0);
         const draw =
           step % sphereEvery === 0 || s.crest > 0.72;
@@ -292,7 +361,7 @@ export function mountGlobalSea(canvas) {
         const wr = Math.round(tr + (255 - tr) * cr * 0.52);
         const wg = Math.round(tg + (255 - tg) * cr * 0.52);
         const wb = Math.round(tb + (255 - tb) * cr * 0.52);
-        const depth = y0 / h;
+        const depth = depthForSample(y0, h);
         const alpha = (0.34 + depth * 0.38) * (0.52 + cr * 0.48);
         const rad = baseRad + cr * 1.05;
         drawShadedSphere(ctx, s.px, s.py, rad, [wr, wg, wb], alpha, cr * 0.82);
@@ -313,38 +382,51 @@ export function mountGlobalSea(canvas) {
 
     const viewA = document.getElementById('view-a');
     const depth01 = scrollDepth01ForLanding(viewA);
-    const layout = landingMass(viewA, w, h, depth01);
-    const grav = layout
-      ? {
-          cx: layout.cx,
-          cy: layout.cy,
-          strength: layout.strength,
-          norm: layout.norm,
-        }
-      : null;
+    const { scrollT } = docScrollT(scrollY);
+    const layout = landingMass(viewA, w, h, depth01, scrollY, scrollT);
+    syncHeroTextSide(viewA, layout);
+    const grav =
+      layout && layout.strength > 1e-4
+        ? {
+            cx: layout.cx,
+            cy: layout.cy,
+            strength: layout.strength,
+            norm: layout.norm,
+          }
+        : null;
+
+    const { padX, padY } = overscanPad(w, h, grav);
 
     const t = reduced ? 0 : now * 1;
     const lineRgb = [70, 178, 232];
     const lineAlpha = 0.26;
     const lineWidth = 1.05;
 
-    drawHorizontalLines(t, lineRgb, lineAlpha, lineWidth, grav, scrollY);
+    drawHorizontalLines(t, lineRgb, lineAlpha, lineWidth, grav, scrollY, padX);
     drawVerticalLines(
       t,
       lineRgb,
       lineAlpha * 0.82,
       lineWidth * 0.92,
       grav,
-      scrollY
+      scrollY,
+      padY
     );
 
     const sphereEvery = w < 520 ? 4 : 3;
     const baseRad = Math.max(1.25, sampleDx * 0.34);
-    drawSparseNodes(t, sphereEvery, baseRad, grav, scrollY);
+    drawSparseNodes(t, sphereEvery, baseRad, grav, scrollY, padX);
 
-    if (layout) {
-      const spin = reduced ? 0 : now * (0.00055 + depth01 * 0.00035);
-      drawSpinningMass(
+    if (layout && layout.visGlobe > 0.004) {
+      const idleSpin = reduced ? 0 : now * (0.00028 + depth01 * 0.00022);
+      const spin = layout.rollAngle + idleSpin;
+      setHeroGlobeMirrorState({
+        spin,
+        depth01,
+        visGlobe: layout.visGlobe,
+        reduced,
+      });
+      drawWireframeParticleGlobe(
         ctx,
         layout.cx,
         layout.cy,
@@ -353,8 +435,11 @@ export function mountGlobalSea(canvas) {
         depth01,
         reduced,
         w,
-        h
+        h,
+        layout.visGlobe
       );
+    } else {
+      setHeroGlobeMirrorState(null);
     }
   }
 

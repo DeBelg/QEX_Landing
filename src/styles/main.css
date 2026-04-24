@@ -189,6 +189,40 @@ button {
   color: var(--c-ink);
 }
 
+/* Hero copy shifts opposite the drifting mass (data-text-side set from waves-fx.js). */
+.view--catcher .catcher__band {
+  width: 100%;
+  max-width: 100%;
+  transition:
+    margin 0.45s var(--ease-out),
+    text-align 0.35s var(--ease-out),
+    max-width 0.45s var(--ease-out);
+}
+
+#view-a[data-text-side="left"] .catcher__band {
+  margin-right: auto;
+  margin-left: clamp(0.75rem, 4vw, 2.25rem);
+  text-align: left;
+  max-width: min(22rem, 48vw);
+}
+
+#view-a[data-text-side="right"] .catcher__band {
+  margin-left: auto;
+  margin-right: clamp(0.75rem, 4vw, 2.25rem);
+  text-align: right;
+  max-width: min(22rem, 48vw);
+}
+
+@media (max-width: 640px) {
+  #view-a[data-text-side] .catcher__band {
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+    max-width: var(--content-max);
+    padding-top: min(10vh, 4.5rem);
+  }
+}
+
 .catcher__title {
   display: flex;
   flex-direction: column;
