@@ -1,0 +1,469 @@
+/* ===========================================================================
+   QEX Global — global stylesheet
+   Mobile-first. Dark by default. View A uses the same sea raster as below.
+   =========================================================================== */
+
+:root {
+  /* Brand palette */
+  --c-blue-100: #d8f1ff;
+  --c-blue-200: #9ddcff;
+  --c-blue-300: #4cc9ff;
+  --c-blue-400: #1aa6e8;
+  --c-blue-500: #0a7fbf;
+  --c-teal-300: #4cf0d4;
+  --c-teal-400: #1ec9b3;
+
+  --c-ink: #f4f7fb;
+  --c-ink-soft: #c9d4e3;
+  --c-ink-mute: #8090a6;
+
+  --c-bg: #000000;
+  --c-bg-soft: #06090f;
+  --c-bg-card: rgba(255, 255, 255, 0.03);
+  --c-border: rgba(255, 255, 255, 0.08);
+
+  /* Type */
+  --ff-sans:
+    -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", "Segoe UI",
+    Roboto, Arial, sans-serif;
+  --ff-mono: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* Layout */
+  --pad-x: clamp(1.25rem, 5vw, 2.5rem);
+  --pad-y: clamp(2.5rem, 10vh, 5rem);
+  --content-max: 36rem;
+  --radius: 14px;
+
+  /* Motion */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--c-bg);
+  color: var(--c-ink);
+  font-family: var(--ff-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -webkit-text-size-adjust: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100svh;
+  scroll-behavior: smooth;
+}
+
+img,
+canvas {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: var(--c-blue-300);
+  text-decoration: none;
+  transition: color 160ms var(--ease-out);
+}
+a:hover,
+a:focus-visible {
+  color: var(--c-blue-200);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   View shell
+   --------------------------------------------------------------------------- */
+
+#app {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 1;
+}
+
+/* One fixed canvas: continuous sea in document space (see waves-fx.js) */
+.global-sea {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  min-height: 100dvh;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.view {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  min-height: 100svh;
+  padding: var(--pad-y) var(--pad-x);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.view--dark {
+  background: transparent;
+  color: var(--c-ink);
+}
+
+.view__canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.view__content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0 0 0.75rem;
+  font-family: var(--ff-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--c-blue-300);
+}
+.eyebrow--alert {
+  color: var(--c-teal-300);
+}
+
+.view__title {
+  margin: 0 0 1rem;
+  font-size: clamp(2rem, 7vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
+.view__body {
+  margin: 0 auto;
+  max-width: 32rem;
+  font-size: clamp(1rem, 2.4vw, 1.0625rem);
+  color: var(--c-ink-soft);
+}
+
+/* ---------------------------------------------------------------------------
+   View A — LandingCatcher (same dark sea raster as below; mass only on canvas)
+   --------------------------------------------------------------------------- */
+
+.view--catcher {
+  background: transparent;
+  color: var(--c-ink);
+}
+
+.catcher__title {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0 0 1rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.95;
+}
+.catcher__brand {
+  font-size: clamp(3.5rem, 18vw, 7rem);
+  background: linear-gradient(
+    180deg,
+    var(--c-blue-300) 0%,
+    var(--c-blue-500) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.catcher__sub {
+  font-size: clamp(1rem, 4vw, 1.25rem);
+  font-weight: 500;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: currentColor;
+  opacity: 0.75;
+}
+
+.catcher__tagline {
+  margin: 0 0 3rem;
+  font-size: clamp(1rem, 3vw, 1.125rem);
+  opacity: 0.7;
+}
+
+.catcher__scroll {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(1.5rem, 4vh, 2.5rem);
+  transform: translateX(-50%);
+  width: 26px;
+  height: 42px;
+  border: 1.5px solid currentColor;
+  border-radius: 14px;
+  opacity: 0.55;
+  transition: opacity 200ms var(--ease-out);
+}
+.catcher__scroll:hover {
+  opacity: 1;
+}
+.catcher__scroll span {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 3px;
+  height: 8px;
+  border-radius: 2px;
+  background: currentColor;
+  animation: scroll-pulse 1.6s var(--ease-out) infinite;
+}
+@keyframes scroll-pulse {
+  0% {
+    transform: translate(-50%, 0);
+    opacity: 1;
+  }
+  60% {
+    transform: translate(-50%, 16px);
+    opacity: 0;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   View D — Team
+   --------------------------------------------------------------------------- */
+
+.team__grid {
+  list-style: none;
+  margin: 2rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.75rem, 3vw, 1.25rem);
+}
+
+.team__card {
+  position: relative;
+  padding: 1.25rem 0.75rem 1rem;
+  background: var(--c-bg-card);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  overflow: hidden;
+}
+
+.team__atom {
+  width: 84px;
+  height: 84px;
+  margin-bottom: 0.5rem;
+}
+
+.team__name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.team__role {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--c-ink-mute);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+.team__link {
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  font-family: var(--ff-mono);
+  word-break: break-all;
+}
+
+/* ---------------------------------------------------------------------------
+   View E — Subscribe
+   --------------------------------------------------------------------------- */
+
+.subscribe__form {
+  margin: 2rem auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 26rem;
+}
+
+.subscribe__input,
+.subscribe__btn {
+  width: 100%;
+  border-radius: var(--radius);
+  padding: 0.95rem 1.1rem;
+  font-size: 1rem;
+  border: 1px solid var(--c-border);
+  transition:
+    border-color 160ms var(--ease-out),
+    background 160ms var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+
+.subscribe__input {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--c-ink);
+  font-family: var(--ff-mono);
+  letter-spacing: 0.02em;
+}
+.subscribe__input::placeholder {
+  color: var(--c-ink-mute);
+}
+.subscribe__input:focus {
+  outline: none;
+  border-color: var(--c-blue-300);
+  background: rgba(76, 201, 255, 0.06);
+}
+
+.subscribe__btn {
+  background: var(--c-blue-300);
+  color: #001220;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border-color: transparent;
+}
+.subscribe__btn:hover {
+  background: var(--c-blue-200);
+  transform: translateY(-1px);
+}
+.subscribe__btn:active {
+  transform: translateY(0);
+}
+
+.subscribe__msg {
+  min-height: 1.25rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--c-blue-200);
+  text-align: center;
+}
+.subscribe__msg[data-state="error"] {
+  color: #ff8aa1;
+}
+
+/* ---------------------------------------------------------------------------
+   Footer
+   --------------------------------------------------------------------------- */
+
+.footer {
+  position: relative;
+  z-index: 1;
+  background: var(--c-bg-soft);
+  border-top: 1px solid var(--c-border);
+  padding: 2rem var(--pad-x) calc(2rem + env(safe-area-inset-bottom));
+  color: var(--c-ink-mute);
+  font-size: 0.8rem;
+}
+.footer__inner {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  align-items: center;
+  text-align: center;
+}
+.footer__brand {
+  margin: 0;
+  font-weight: 600;
+  color: var(--c-ink-soft);
+  letter-spacing: 0.06em;
+}
+.footer__nav {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.footer__nav a {
+  color: var(--c-ink-soft);
+}
+.footer__copy {
+  margin: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   Reveal animation hooks (driven by main.js IntersectionObserver)
+   --------------------------------------------------------------------------- */
+
+.view__content > * {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 700ms var(--ease-out),
+    transform 700ms var(--ease-out);
+}
+.view.is-visible .view__content > * {
+  opacity: 1;
+  transform: translateY(0);
+}
+.view.is-visible .view__content > *:nth-child(2) {
+  transition-delay: 80ms;
+}
+.view.is-visible .view__content > *:nth-child(3) {
+  transition-delay: 160ms;
+}
+.view.is-visible .view__content > *:nth-child(4) {
+  transition-delay: 240ms;
+}
+
+/* ---------------------------------------------------------------------------
+   Reduced motion
+   --------------------------------------------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .view__content > * {
+    opacity: 1;
+    transform: none;
+  }
+}

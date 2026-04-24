@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#000000" />
+    <meta
+      name="description"
+      content="QEX Global — exploring the quantum frontier."
+    />
+    <title>QEX Global</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/styles/main.css" />
+  </head>
+  <body>
+    <main id="app">
+      <!-- Single full-viewport sea (document-space); mass only when #view-a is on-screen -->
+      <canvas
+        id="global-sea"
+        class="global-sea"
+        aria-hidden="true"
+      ></canvas>
+
+      <!-- View A — LandingCatcher -->
+      <section id="view-a" class="view view--catcher view--dark" data-view="a">
+        <div class="view__content">
+          <h1 class="catcher__title">
+            <span class="catcher__brand">QEX</span>
+            <span class="catcher__sub">Global</span>
+          </h1>
+          <p class="catcher__tagline">Quantum-Era Foresight.</p>
+          <a class="catcher__scroll" href="#view-b" aria-label="Scroll to About">
+            <span></span>
+          </a>
+        </div>
+      </section>
+
+      <!-- View B — About -->
+      <section id="view-b" class="view view--about view--dark" data-view="b">
+        <div class="view__content">
+          <p class="eyebrow">About</p>
+          <h2 class="view__title">A new horizon.</h2>
+          <p class="view__body">
+            We bridge the gap between emerging quantum capabilities and the
+            organizations preparing for what comes next. Research, foresight,
+            and action — distilled.
+          </p>
+        </div>
+      </section>
+
+      <!-- View C — Threat -->
+      <section id="view-c" class="view view--threat view--dark" data-view="c">
+        <div class="view__content">
+          <p class="eyebrow eyebrow--alert">Threat</p>
+          <h2 class="view__title">The wave is already here.</h2>
+          <p class="view__body">
+            Cryptography that protected us for decades is approaching its
+            expiration date. The cost of inaction compounds quietly — until it
+            doesn't.
+          </p>
+        </div>
+      </section>
+
+      <!-- View D — Team -->
+      <section id="view-d" class="view view--team view--dark" data-view="d">
+        <div class="view__content team">
+          <p class="eyebrow">Team</p>
+          <h2 class="view__title">Minds in orbit.</h2>
+          <ul class="team__grid" role="list">
+            <li class="team__card">
+              <canvas class="team__atom" data-fx="electron" aria-hidden="true"></canvas>
+              <h3 class="team__name">Lorem Ipsum</h3>
+              <p class="team__role">Founder &amp; Director</p>
+              <a class="team__link" href="#" rel="noopener">linkedin.com/lorem</a>
+            </li>
+            <li class="team__card">
+              <canvas class="team__atom" data-fx="electron" aria-hidden="true"></canvas>
+              <h3 class="team__name">Dolor Sit</h3>
+              <p class="team__role">Head of Research</p>
+              <a class="team__link" href="#" rel="noopener">linkedin.com/dolor</a>
+            </li>
+            <li class="team__card">
+              <canvas class="team__atom" data-fx="electron" aria-hidden="true"></canvas>
+              <h3 class="team__name">Amet Consectetur</h3>
+              <p class="team__role">Cryptography Lead</p>
+              <a class="team__link" href="#" rel="noopener">linkedin.com/amet</a>
+            </li>
+            <li class="team__card">
+              <canvas class="team__atom" data-fx="electron" aria-hidden="true"></canvas>
+              <h3 class="team__name">Adipiscing Elit</h3>
+              <p class="team__role">Policy Advisor</p>
+              <a class="team__link" href="#" rel="noopener">linkedin.com/adipiscing</a>
+            </li>
+            <li class="team__card">
+              <canvas class="team__atom" data-fx="electron" aria-hidden="true"></canvas>
+              <h3 class="team__name">Sed Eiusmod</h3>
+              <p class="team__role">Engineering</p>
+              <a class="team__link" href="#" rel="noopener">linkedin.com/sed</a>
+            </li>
+            <li class="team__card">
+              <canvas class="team__atom" data-fx="electron" aria-hidden="true"></canvas>
+              <h3 class="team__name">Tempor Incididunt</h3>
+              <p class="team__role">Communications</p>
+              <a class="team__link" href="#" rel="noopener">linkedin.com/tempor</a>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- View E — Subscribe -->
+      <section id="view-e" class="view view--subscribe view--dark" data-view="e">
+        <div class="view__content subscribe">
+          <p class="eyebrow">Subscribe</p>
+          <h2 class="view__title">Stay in the loop.</h2>
+          <p class="view__body">
+            Quarterly briefings on the quantum threat landscape — no noise.
+          </p>
+          <form class="subscribe__form" data-subscribe novalidate>
+            <label class="visually-hidden" for="email">Email address</label>
+            <input
+              id="email"
+              class="subscribe__input"
+              type="email"
+              name="email"
+              autocomplete="email"
+              inputmode="email"
+              placeholder="you@domain.com"
+              required
+            />
+            <button class="subscribe__btn" type="submit">Subscribe</button>
+            <p class="subscribe__msg" data-subscribe-msg aria-live="polite"></p>
+          </form>
+        </div>
+      </section>
+
+      <footer class="footer" role="contentinfo">
+        <div class="footer__inner">
+          <p class="footer__brand">QEX Global</p>
+          <nav class="footer__nav" aria-label="Legal">
+            <a href="./privacy.html">Privacy</a>
+            <span aria-hidden="true">·</span>
+            <a href="./terms.html">Terms</a>
+            <span aria-hidden="true">·</span>
+            <a href="https://michiel.degruytere.com" rel="noopener" target="_blank">Design</a>
+          </nav>
+          <p class="footer__copy">
+            © <span data-year></span> Michiel Degruytere. All rights reserved.
+          </p>
+        </div>
+      </footer>
+    </main>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

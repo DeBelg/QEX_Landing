@@ -1,0 +1,84 @@
+/**
+ * Shared helpers for the canvas-driven backgrounds.
+ * Mobile-first: particle counts, DPR, and FPS targets are tuned conservatively.
+ */
+
+export const prefersReducedMotion = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+export const isCoarsePointer = () =>
+  typeof window !== 'undefined' &&
+  window.matchMedia('(pointer: coarse)').matches;
+
+/**
+ * Scale density gracefully on small screens so phones stay smooth.
+ * @param {number} base desktop target
+ * @param {number} mobile mobile floor
+ */
+export function densityFor(base, mobile) {
+  if (typeof window === 'undefined') return base;
+  const w = window.innerWidth;
+  if (w < 480) return mobile;
+  if (w < 900) return Math.round((base + mobile) / 2);
+  return base;
+}
+
+/**
+ * Resize a canvas to its layout size, capped at 2x DPR for perf.
+ * Returns { w, h, dpr } in CSS pixels (w/h) and device pixels via dpr.
+ */
+export function fitCanvas(canvas) {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(1, Math.floor(rect.width));
+  const h = Math.max(1, Math.floor(rect.height));
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  return { w, h, dpr };
+}
+
+/**
+ * Lightweight RAF loop with visibility + `IntersectionObserver` gating so
+ * off-screen canvases don't cost anything.
+ */
+export function createLoop({ canvas, render, onResize }) {
+  let raf = 0;
+  let last = performance.now();
+  let visible = true;
+  let onScreen = true;
+
+  const tick = (now) => {
+    raf = requestAnimationFrame(tick);
+    const dt = Math.min(48, now - last);
+    last = now;
+    if (visible && onScreen) render(dt, now);
+  };
+
+  const handleResize = () => onResize?.();
+  window.addEventListener('resize', handleResize, { passive: true });
+
+  const onVisibility = () => {
+    visible = document.visibilityState === 'visible';
+    last = performance.now();
+  };
+  document.addEventListener('visibilitychange', onVisibility);
+
+  const io = new IntersectionObserver(
+    ([entry]) => {
+      onScreen = entry.isIntersecting;
+      last = performance.now();
+    },
+    { threshold: 0 }
+  );
+  io.observe(canvas);
+
+  raf = requestAnimationFrame(tick);
+
+  return () => {
+    cancelAnimationFrame(raf);
+    window.removeEventListener('resize', handleResize);
+    document.removeEventListener('visibilitychange', onVisibility);
+    io.disconnect();
+  };
+}
