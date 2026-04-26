@@ -25,11 +25,13 @@ export function densityFor(base, mobile) {
 }
 
 /**
- * Resize a canvas to its layout size, capped at 2x DPR for perf.
+ * Resize a canvas to its layout size. DPR capped for perf (phones: use maxDpr 1).
  * Returns { w, h, dpr } in CSS pixels (w/h) and device pixels via dpr.
+ * @param {{ maxDpr?: number }} [options]
  */
-export function fitCanvas(canvas) {
-  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+export function fitCanvas(canvas, options = {}) {
+  const maxDpr = options.maxDpr ?? 2;
+  const dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
   const rect = canvas.getBoundingClientRect();
   const w = Math.max(1, Math.floor(rect.width));
   const h = Math.max(1, Math.floor(rect.height));
@@ -41,26 +43,33 @@ export function fitCanvas(canvas) {
 /**
  * Lightweight RAF loop with visibility + `IntersectionObserver` gating so
  * off-screen canvases don't cost anything.
+ *
+ * Team globe mirrors piggyback the global sea frame via
+ * `flushGlobeMirrorRenders` instead of each starting its own RAF.
  */
 export function createLoop({ canvas, render, onResize }) {
   let raf = 0;
   let last = performance.now();
   let visible = true;
   let onScreen = true;
+  const reduced = prefersReducedMotion();
 
-  const tick = (now) => {
-    raf = requestAnimationFrame(tick);
+  const runFrame = (now) => {
     const dt = Math.min(48, now - last);
     last = now;
     if (visible && onScreen) render(dt, now);
   };
 
-  const handleResize = () => onResize?.();
+  const handleResize = () => {
+    onResize?.();
+    runFrame(performance.now());
+  };
   window.addEventListener('resize', handleResize, { passive: true });
 
   const onVisibility = () => {
     visible = document.visibilityState === 'visible';
     last = performance.now();
+    if (visible && onScreen) runFrame(performance.now());
   };
   document.addEventListener('visibilitychange', onVisibility);
 
@@ -68,10 +77,39 @@ export function createLoop({ canvas, render, onResize }) {
     ([entry]) => {
       onScreen = entry.isIntersecting;
       last = performance.now();
+      if (visible && onScreen) runFrame(performance.now());
     },
     { threshold: 0 }
   );
   io.observe(canvas);
+
+  /** Coalesce scroll to one draw per frame (reduced-motion path). */
+  let scrollRaf = 0;
+  const onScroll = () => {
+    if (!visible || !onScreen) return;
+    if (scrollRaf) return;
+    scrollRaf = requestAnimationFrame(() => {
+      scrollRaf = 0;
+      runFrame(performance.now());
+    });
+  };
+
+  if (reduced) {
+    runFrame(performance.now());
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      if (scrollRaf) cancelAnimationFrame(scrollRaf);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('scroll', onScroll);
+      document.removeEventListener('visibilitychange', onVisibility);
+      io.disconnect();
+    };
+  }
+
+  const tick = (now) => {
+    raf = requestAnimationFrame(tick);
+    runFrame(now);
+  };
 
   raf = requestAnimationFrame(tick);
 

@@ -2,9 +2,9 @@
  * Shared wireframe + particle globe (hero + mirrored team canvases).
  */
 
-function drawMassFieldBackdrop(ctx, cx, cy, R, depth01, w, h) {
+function drawMassFieldBackdrop(ctx, cx, cy, R, depth01, w, h, backdropMul = 1) {
   const g = ctx.createRadialGradient(cx, cy, R * 0.15, cx, cy, R * 5.2);
-  const a = 0.09 + depth01 * 0.16;
+  const a = (0.09 + depth01 * 0.16) * backdropMul;
   g.addColorStop(0, `rgba(55, 150, 215, ${a * 1.15})`);
   g.addColorStop(0.28, `rgba(25, 95, 155, ${a * 0.72})`);
   g.addColorStop(0.55, `rgba(12, 50, 95, ${a * 0.35})`);
@@ -17,6 +17,9 @@ function drawMassFieldBackdrop(ctx, cx, cy, R, depth01, w, h) {
  * Mass as a **wireframe + particle** globe: lat/long arcs, extra great circles,
  * and shaded vertex dots (no solid gradient sphere).
  */
+/**
+ * @param {object} [opts] — lower latN/lonN/steps on small GPUs; backdropMul lifts halo on OLED.
+ */
 export function drawWireframeParticleGlobe(
   ctx,
   cx,
@@ -27,16 +30,21 @@ export function drawWireframeParticleGlobe(
   reduced,
   w,
   h,
-  visFade
+  visFade,
+  opts = {}
 ) {
+  const latN = opts.latN ?? 12;
+  const lonN = opts.lonN ?? 20;
+  const tiltCount = opts.tiltCount ?? 6;
+  const steps = opts.steps ?? 56;
+  const backdropMul = opts.backdropMul ?? 1;
+
   const vf = Math.max(0, Math.min(1, visFade));
   ctx.save();
   ctx.globalAlpha = Math.min(1, 0.2 + vf * 0.95);
 
-  drawMassFieldBackdrop(ctx, cx, cy, R, depth01, w, h);
+  drawMassFieldBackdrop(ctx, cx, cy, R, depth01, w, h, backdropMul);
 
-  const latN = 12;
-  const lonN = 20;
   const persp = 0.0025;
   const latRows = latN + 1;
 
@@ -78,6 +86,12 @@ export function drawWireframeParticleGlobe(
   }
 
   const lineBaseA = 0.2 + (1 - depth01) * 0.14;
+  const shortSide = Math.min(w, h);
+  /** Faint great circles read poorly under dense vertex dots on small screens. */
+  const tiltArcBoost =
+    shortSide < 520 || R < 36 ? 1.48 : shortSide < 720 ? 1.15 : 1;
+  const tiltLineW = shortSide < 520 ? Math.min(1.32, 0.75 + 520 / Math.max(shortSide, 280)) : 0.75;
+
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.lineWidth = 1.15;
@@ -104,28 +118,6 @@ export function drawWireframeParticleGlobe(
     }
     const fa = 0.5 + (lo / lonN) * 0.5;
     ctx.strokeStyle = `rgba(140, 215, 255, ${lineBaseA * fa})`;
-    ctx.stroke();
-  }
-
-  const tiltCount = 6;
-  const steps = 56;
-  ctx.lineWidth = 0.75;
-  for (let ti = 0; ti < tiltCount; ti++) {
-    const tilt = (ti / tiltCount) * Math.PI;
-    const roll = ti * 1.17 + angle * 0.5;
-    ctx.beginPath();
-    for (let s = 0; s <= steps; s++) {
-      const u = (s / steps) * Math.PI * 2;
-      const x = R * Math.cos(u) * Math.cos(tilt);
-      const y = R * Math.sin(u);
-      const z = R * Math.cos(u) * Math.sin(tilt);
-      const p0 = rotateY(x, y, z, roll);
-      const pr = project(p0.x, p0.y, p0.z);
-      if (s === 0) ctx.moveTo(pr.sx, pr.sy);
-      else ctx.lineTo(pr.sx, pr.sy);
-    }
-    const fa = 0.45 + 0.35 * Math.sin(ti + depth01);
-    ctx.strokeStyle = `rgba(130, 210, 255, ${0.1 + fa * 0.14})`;
     ctx.stroke();
   }
 
@@ -161,6 +153,28 @@ export function drawWireframeParticleGlobe(
       ctx.arc(p.sx - pr * 0.14, p.sy - pr * 0.14, pr * 0.16, 0, Math.PI * 2);
       ctx.fill();
     }
+  }
+
+  /* Great circles (“other side” arcs) on top of vertices so they stay visible on mobile. */
+  ctx.lineWidth = tiltLineW;
+  for (let ti = 0; ti < tiltCount; ti++) {
+    const tilt = (ti / tiltCount) * Math.PI;
+    const roll = ti * 1.17 + angle * 0.5;
+    ctx.beginPath();
+    for (let s = 0; s <= steps; s++) {
+      const u = (s / steps) * Math.PI * 2;
+      const x = R * Math.cos(u) * Math.cos(tilt);
+      const y = R * Math.sin(u);
+      const z = R * Math.cos(u) * Math.sin(tilt);
+      const p0 = rotateY(x, y, z, roll);
+      const pr = project(p0.x, p0.y, p0.z);
+      if (s === 0) ctx.moveTo(pr.sx, pr.sy);
+      else ctx.lineTo(pr.sx, pr.sy);
+    }
+    const fa = 0.45 + 0.35 * Math.sin(ti + depth01);
+    const ta = Math.min(0.44, (0.12 + fa * 0.16) * tiltArcBoost);
+    ctx.strokeStyle = `rgba(130, 210, 255, ${ta})`;
+    ctx.stroke();
   }
 
   ctx.strokeStyle = `rgba(220, 245, 255, ${0.28 + (1 - depth01) * 0.18})`;

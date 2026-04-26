@@ -1,10 +1,7 @@
-import anime from 'animejs';
-
-import { mountGlobalSea } from './lib/waves-fx.js';
-import { mountGlobeMirror } from './lib/globe-mirror-fx.js';
+import './styles/main.css';
 
 /* ---------------------------------------------------------------------------
-   Footer year
+   Footer year (sync, tiny)
    --------------------------------------------------------------------------- */
 
 document.querySelectorAll('[data-year]').forEach((el) => {
@@ -12,21 +9,7 @@ document.querySelectorAll('[data-year]').forEach((el) => {
 });
 
 /* ---------------------------------------------------------------------------
-   One full-viewport sea (#global-sea) + team card globes (mirror hero state).
-   --------------------------------------------------------------------------- */
-
-const globalSea = document.getElementById('global-sea');
-if (globalSea) {
-  mountGlobalSea(globalSea);
-}
-
-document.querySelectorAll('[data-fx="globe"]').forEach((el) => {
-  mountGlobeMirror(el);
-});
-
-/* ---------------------------------------------------------------------------
    View reveal — toggle .is-visible when each section enters the viewport.
-   The CSS handles the staggered fade-in.
    --------------------------------------------------------------------------- */
 
 const viewObserver = new IntersectionObserver(
@@ -42,94 +25,126 @@ const viewObserver = new IntersectionObserver(
 );
 document.querySelectorAll('.view').forEach((v) => viewObserver.observe(v));
 
-/* ---------------------------------------------------------------------------
-   Catcher (View A) hero animation — anime.js handles the brand entrance.
-   --------------------------------------------------------------------------- */
+const reducedMotion = window.matchMedia(
+  '(prefers-reduced-motion: reduce)'
+).matches;
 
-const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-if (!reduced) {
-  anime
-    .timeline({ easing: 'easeOutExpo' })
-    .add({
-      targets: '.catcher__brand',
-      opacity: [0, 1],
-      translateY: [24, 0],
-      letterSpacing: ['-0.02em', '-0.04em'],
-      duration: 1100,
-    })
-    .add(
-      {
-        targets: '.catcher__sub',
-        opacity: [0, 0.75],
-        translateY: [12, 0],
-        duration: 700,
-      },
-      '-=700'
-    )
-    .add(
-      {
-        targets: '.catcher__tagline',
-        opacity: [0, 0.7],
-        translateY: [10, 0],
-        duration: 600,
-      },
-      '-=500'
-    )
-    .add(
-      {
-        targets: '.catcher__scroll',
-        opacity: [0, 0.55],
-        duration: 600,
-      },
-      '-=300'
-    );
+/** Wait for first paint before loading animation + canvas work. */
+function afterFirstPaint(fn) {
+  requestAnimationFrame(() => requestAnimationFrame(fn));
 }
 
-/* ---------------------------------------------------------------------------
-   Subscribe form (View E) — local-only feedback for now.
-   --------------------------------------------------------------------------- */
+afterFirstPaint(async () => {
+  const [{ mountGlobalSea }, animeMod] = await Promise.all([
+    import('./lib/waves-fx.js'),
+    import('animejs'),
+  ]);
+  const anime = animeMod.default;
 
-const form = document.querySelector('[data-subscribe]');
-if (form) {
-  const input = form.querySelector('.subscribe__input');
-  const msg = form.querySelector('[data-subscribe-msg]');
+  const globalSea = document.getElementById('global-sea');
+  if (globalSea) {
+    mountGlobalSea(globalSea);
+  }
 
-  const setMsg = (text, state = '') => {
-    msg.textContent = text;
-    if (state) msg.dataset.state = state;
-    else msg.removeAttribute('data-state');
+  /* Team card globes: mount only when the team block is near the viewport. */
+  const teamSection = document.getElementById('view-d');
+  let teamMirrorsMounted = false;
+  const mountTeamMirrors = async () => {
+    if (teamMirrorsMounted) return;
+    teamMirrorsMounted = true;
+    const { mountGlobeMirror } = await import('./lib/globe-mirror-fx.js');
+    document.querySelectorAll('[data-fx="globe"]').forEach((el) => {
+      mountGlobeMirror(el);
+    });
   };
 
-  form.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const value = (input.value || '').trim();
-    const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  if (teamSection) {
+    const teamIo = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          void mountTeamMirrors();
+          teamIo.disconnect();
+        }
+      },
+      { rootMargin: '120px 0px', threshold: 0 }
+    );
+    teamIo.observe(teamSection);
+  }
 
-    if (!valid) {
-      setMsg('Please enter a valid email address.', 'error');
-      anime({
-        targets: input,
-        translateX: [
-          { value: -8, duration: 60 },
-          { value: 8, duration: 60 },
-          { value: -5, duration: 60 },
-          { value: 0, duration: 60 },
-        ],
-        easing: 'easeInOutQuad',
-      });
-      return;
-    }
+  /* Catcher — motion without hiding text from LCP (no opacity keyframes). */
+  if (!reducedMotion) {
+    anime
+      .timeline({ easing: 'easeOutExpo' })
+      .add({
+        targets: '.catcher__brand',
+        translateY: [24, 0],
+        letterSpacing: ['-0.02em', '-0.04em'],
+        duration: 1100,
+      })
+      .add(
+        {
+          targets: '.catcher__tagline',
+          translateY: [10, 0],
+          duration: 600,
+        },
+        '-=500'
+      )
+      .add(
+        {
+          targets: '.catcher__scroll',
+          opacity: [0, 0.55],
+          duration: 600,
+        },
+        '-=300'
+      );
+  }
 
-    setMsg('Thanks — you\u2019re on the list.');
-    input.value = '';
-    anime({
-      targets: form.querySelector('.subscribe__btn'),
-      scale: [
-        { value: 0.96, duration: 120 },
-        { value: 1, duration: 220 },
-      ],
-      easing: 'easeOutBack',
+  /* Subscribe form — needs anime when user interacts. */
+  const form = document.querySelector('[data-subscribe]');
+  if (form) {
+    const input = form.querySelector('.subscribe__input');
+    const msg = form.querySelector('[data-subscribe-msg]');
+
+    const setMsg = (text, state = '') => {
+      msg.textContent = text;
+      if (state) msg.dataset.state = state;
+      else msg.removeAttribute('data-state');
+    };
+
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const value = (input.value || '').trim();
+      const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
+      if (!valid) {
+        setMsg('Please enter a valid email address.', 'error');
+        if (!reducedMotion) {
+          anime({
+            targets: input,
+            translateX: [
+              { value: -8, duration: 60 },
+              { value: 8, duration: 60 },
+              { value: -5, duration: 60 },
+              { value: 0, duration: 60 },
+            ],
+            easing: 'easeInOutQuad',
+          });
+        }
+        return;
+      }
+
+      setMsg('Thanks — you\u2019re on the list.');
+      input.value = '';
+      if (!reducedMotion) {
+        anime({
+          targets: form.querySelector('.subscribe__btn'),
+          scale: [
+            { value: 0.96, duration: 120 },
+            { value: 1, duration: 220 },
+          ],
+          easing: 'easeOutBack',
+        });
+      }
     });
-  });
-}
+  }
+});

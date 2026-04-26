@@ -4,6 +4,13 @@
  *
  * Mesh sampling **overscans** past the viewport so crests / warps never pull
  * the surface inward enough to expose empty black at the edges.
+ *
+ * **Perf roadmap (same look, faster):** (1) One RAF path — team globe mirrors
+ * flush after this render (see `flushGlobeMirrorRenders`). (2) Next wins:
+ * pre-bake bead sprites to atlas + `drawImage` instead of per-bead gradients;
+ * optional `OffscreenCanvas` + Worker for sea mesh only, transfer to main;
+ * long-term WebGL mesh shader matching current stroke+tint math for GPU-bound
+ * phones while keeping layout/scroll contract identical.
  */
 
 import {
@@ -13,7 +20,10 @@ import {
 } from './canvas-utils.js';
 import { drawShadedSphere } from './sphere.js';
 import { drawWireframeParticleGlobe } from './wireframe-globe.js';
-import { setHeroGlobeMirrorState } from './hero-globe-state.js';
+import {
+  flushGlobeMirrorRenders,
+  setHeroGlobeMirrorState,
+} from './hero-globe-state.js';
 
 const TINTS = [
   [76, 201, 255],
@@ -231,7 +241,9 @@ function seaField(vx, vy, t, w, h, grav, docY) {
 }
 
 export function mountGlobalSea(canvas) {
-  const ctx = canvas.getContext('2d');
+  let ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+  if (!ctx) ctx = canvas.getContext('2d', { alpha: false });
+  if (!ctx) ctx = canvas.getContext('2d');
   const reduced = prefersReducedMotion();
 
   let w = 0;
@@ -441,6 +453,8 @@ export function mountGlobalSea(canvas) {
     } else {
       setHeroGlobeMirrorState(null);
     }
+
+    flushGlobeMirrorRenders();
   }
 
   build();

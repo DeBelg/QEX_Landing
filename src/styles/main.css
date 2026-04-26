@@ -4,6 +4,7 @@
    =========================================================================== */
 
 :root {
+  color-scheme: dark;
   /* Brand palette */
   --c-blue-100: #d8f1ff;
   --c-blue-200: #9ddcff;
@@ -42,6 +43,11 @@
   box-sizing: border-box;
 }
 
+html {
+  height: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
 html,
 body {
   margin: 0;
@@ -57,8 +63,11 @@ body {
 }
 
 body {
-  min-height: 100svh;
+  min-height: 100%;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
   scroll-behavior: smooth;
+  touch-action: manipulation;
 }
 
 img,
@@ -110,9 +119,10 @@ button {
   position: fixed;
   inset: 0;
   width: 100%;
-  max-width: none;
-  height: 100%;
+  max-width: none !important;
+  height: 100dvh;
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
   z-index: 0;
   pointer-events: none;
 }
@@ -243,6 +253,13 @@ button {
   background-clip: text;
   color: transparent;
 }
+
+@supports not ((-webkit-background-clip: text) or (background-clip: text)) {
+  .catcher__brand {
+    background: none;
+    color: var(--c-blue-300);
+  }
+}
 .catcher__sub {
   font-size: clamp(1rem, 4vw, 1.25rem);
   font-weight: 500;
@@ -267,7 +284,7 @@ button {
   height: 42px;
   border: 1.5px solid currentColor;
   border-radius: 14px;
-  opacity: 0.55;
+  opacity: 0;
   transition: opacity 200ms var(--ease-out);
 }
 .catcher__scroll:hover {
@@ -328,6 +345,7 @@ button {
 .team__atom {
   width: 84px;
   height: 84px;
+  max-width: none;
   margin-bottom: 0.5rem;
 }
 
@@ -463,24 +481,25 @@ button {
    Reveal animation hooks (driven by main.js IntersectionObserver)
    --------------------------------------------------------------------------- */
 
-.view__content > * {
+/* Hero (view A) stays visible for first paint / LCP; other views fade in on scroll. */
+.view:not(.view--catcher) .view__content > * {
   opacity: 0;
   transform: translateY(14px);
   transition:
     opacity 700ms var(--ease-out),
     transform 700ms var(--ease-out);
 }
-.view.is-visible .view__content > * {
+.view:not(.view--catcher).is-visible .view__content > * {
   opacity: 1;
   transform: translateY(0);
 }
-.view.is-visible .view__content > *:nth-child(2) {
+.view:not(.view--catcher).is-visible .view__content > *:nth-child(2) {
   transition-delay: 80ms;
 }
-.view.is-visible .view__content > *:nth-child(3) {
+.view:not(.view--catcher).is-visible .view__content > *:nth-child(3) {
   transition-delay: 160ms;
 }
-.view.is-visible .view__content > *:nth-child(4) {
+.view:not(.view--catcher).is-visible .view__content > *:nth-child(4) {
   transition-delay: 240ms;
 }
 
@@ -496,7 +515,13 @@ button {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
   }
-  .view__content > * {
+  html {
+    scroll-behavior: auto;
+  }
+  .catcher__scroll {
+    opacity: 0.5;
+  }
+  .view:not(.view--catcher) .view__content > * {
     opacity: 1;
     transform: none;
   }
