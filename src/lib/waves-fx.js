@@ -32,18 +32,20 @@ const TINTS = [
   [200, 235, 255],
 ];
 
-function scrollDepth01ForLanding(el) {
-  const vh = window.innerHeight || 1;
+function scrollDepth01ForLanding(el, vh) {
   if (!el) return 0.45;
   const r = el.getBoundingClientRect();
   return Math.max(0, Math.min(1, (vh - r.top) / (vh + r.height)));
 }
 
-/** Fraction of view A’s height that intersects the viewport (0 = off-screen). */
-function viewAViewportFraction(el) {
+/**
+ * Fraction of view A’s height that intersects the viewport (0 = off-screen).
+ * Uses the **locked** canvas height (`vh` arg) instead of `window.innerHeight`
+ * so iOS URL-bar transitions can't wiggle the visibility math each frame.
+ */
+function viewAViewportFraction(el, vh) {
   if (!el) return 0;
   const ar = el.getBoundingClientRect();
-  const vh = window.innerHeight || 1;
   const visTop = Math.max(0, ar.top);
   const visBot = Math.min(vh, ar.bottom);
   const visH = Math.max(0, visBot - visTop);
@@ -58,9 +60,10 @@ function smoothstep01(t) {
 
 /**
  * Normalized document scroll 0 = top, 1 = bottom (max scroll depth).
+ * Takes the locked canvas height (`vh`) so the scroll progress doesn't shift
+ * subtly when iOS Safari's URL bar collapses (which would change innerHeight).
  */
-function docScrollT(scrollY) {
-  const vh = window.innerHeight || 1;
+function docScrollT(scrollY, vh) {
   const doc = document.documentElement;
   const scrollMax = Math.max(1, doc.scrollHeight - vh);
   const t = Math.max(0, Math.min(1, scrollY / scrollMax));
@@ -84,10 +87,10 @@ function sinkEase01(t) {
 function landingMass(viewA, w, h, depth01, scrollY, scrollT) {
   if (!viewA) return null;
   const ar = viewA.getBoundingClientRect();
-  const vh = window.innerHeight || 1;
-  const vis = viewAViewportFraction(viewA);
+  /** Use the locked canvas height as the "viewport" size — see CSS --app-h. */
+  const vh = h;
+  const vis = viewAViewportFraction(viewA, vh);
   const sinkProgress = sinkEase01(scrollT);
-  const warpFade = Math.min(1, smoothstep01(vis) + scrollT * 0.88);
 
   /** Hero at rest: treat globe as fully visible even if `vis` is 0 on first layout frames. */
   const sectionBottomOk = ar.bottom > vh * 0.22;
@@ -102,6 +105,17 @@ function landingMass(viewA, w, h, depth01, scrollY, scrollT) {
   const tailFade =
     scrollT <= 0.88 ? 1 : Math.max(0, 1 - (scrollT - 0.88) / 0.12);
   const visGlobe = rawGlobe * tailFade;
+
+  /**
+   * Warp fade now tracks `visGlobe` directly. The previous formula
+   * (`smoothstep01(vis) + scrollT * 0.88`) dipped to ~0.18 right where view-a
+   * hands off to view-b (vis already ~0, scrollT only ~0.2), so the sea
+   * visibly "settled" mid-page and re-warped — that was the unsmooth
+   * screen-1 → screen-2 transition. Following `visGlobe` instead gives a
+   * monotonic 1 → 0.7 → 0 ramp that mirrors the sphere's own visibility, so
+   * the sea calms down only as the sphere itself fades out.
+   */
+  const warpFade = visGlobe;
 
   const m = Math.min(ar.width, ar.height, Math.min(w, h));
   const narrow = w < 560;
@@ -158,6 +172,26 @@ function syncHeroTextSide(viewA, layout) {
   viewA.dataset.textSide = t;
 }
 
+/**
+ * Fade the catcher copy out as view-a leaves the viewport so the hand-off into
+ * view-b's fade-in is symmetric. CSS reads `--catcher-fade` (see main.css).
+ * Uses `vis` directly: full opacity until view-a is ~70 % visible, then ramps
+ * to 0 as it leaves — the catcher dissolves in step with the sphere sinking.
+ */
+function syncCatcherFade(viewA, layout) {
+  if (!viewA) return;
+  const vis = layout ? layout.vis : 1;
+  /** Hold opacity 1 until view-a is half off-screen, then ease to 0. */
+  const t = Math.max(0, Math.min(1, (vis - 0.18) / 0.5));
+  const op = smoothstep01(t);
+  /** Avoid CSSOM churn: only write when the value actually changes. */
+  const next = op.toFixed(3);
+  if (viewA.dataset.fade !== next) {
+    viewA.dataset.fade = next;
+    viewA.style.setProperty('--catcher-fade', next);
+  }
+}
+
 function applyMassWarp(px, py, grav) {
   if (!grav || grav.strength <= 0) return { px, py };
   const dx = grav.cx - px;
@@ -196,7 +230,9 @@ function depthForSample(vy, h) {
 function seaField(vx, vy, t, w, h, grav, docY) {
   const k = 0.0056;
   const omega = 0.00088;
-  const innerH = Math.max(480, window.innerHeight || 800);
+  /** Use the locked canvas height (h) so the wave phase doesn't drift during
+      iOS URL-bar transitions. */
+  const innerH = Math.max(480, h);
   const theta = k * vx - omega * t + (docY * k * 0.15) / innerH;
 
   const main = Math.sin(theta);
@@ -258,8 +294,9 @@ export function mountGlobalSea(canvas) {
   function build() {
     ({ w, h, dpr } = fitCanvas(canvas));
     const narrow = w < 480;
-    nHoriz = narrow ? 8 : 9;
-    nVert = narrow ? 9 : 12;
+    /** Mobile flow: fewer lines + sparser dots → more whitespace, less visual chatter. */
+    nHoriz = narrow ? 6 : 9;
+    nVert = narrow ? 7 : 12;
     sampleDx = Math.max(2.8, Math.min(4.5, w / 175));
     sampleDy = Math.max(3.2, Math.min(5, h / 150));
   }
@@ -393,10 +430,11 @@ export function mountGlobalSea(canvas) {
       0;
 
     const viewA = document.getElementById('view-a');
-    const depth01 = scrollDepth01ForLanding(viewA);
-    const { scrollT } = docScrollT(scrollY);
+    const depth01 = scrollDepth01ForLanding(viewA, h);
+    const { scrollT } = docScrollT(scrollY, h);
     const layout = landingMass(viewA, w, h, depth01, scrollY, scrollT);
     syncHeroTextSide(viewA, layout);
+    syncCatcherFade(viewA, layout);
     const grav =
       layout && layout.strength > 1e-4
         ? {
@@ -425,7 +463,8 @@ export function mountGlobalSea(canvas) {
       padY
     );
 
-    const sphereEvery = w < 520 ? 4 : 3;
+    /** Mobile node stride bumped from 4 → 6 so the bead row reads as scattered, not solid. */
+    const sphereEvery = w < 520 ? 6 : 3;
     const baseRad = Math.max(1.25, sampleDx * 0.34);
     drawSparseNodes(t, sphereEvery, baseRad, grav, scrollY, padX);
 
@@ -438,6 +477,19 @@ export function mountGlobalSea(canvas) {
         visGlobe: layout.visGlobe,
         reduced,
       });
+      /**
+       * Particle dots are pixel-sized; without scaling they look ~3× chunkier
+       * on the mobile hero (R≈65) than on desktop (R≈189). Scale dots with R
+       * so the wireframe stays as airy on small screens. Capped at 1 so the
+       * desktop look (calibrated for R≈190) is preserved exactly.
+       */
+      const heroDotScale = Math.max(0.45, Math.min(1, layout.R / 130));
+      /**
+       * On small/mobile heroes, draw the great-circle "aerial" arcs at 1.5× the
+       * sphere radius so they extend past the sphere edge and read as orbits
+       * instead of melting into the wireframe. Desktop keeps the spherical 1.0.
+       */
+      const heroTiltRScale = layout.R < 80 ? 1.5 : 1;
       drawWireframeParticleGlobe(
         ctx,
         layout.cx,
@@ -448,7 +500,8 @@ export function mountGlobalSea(canvas) {
         reduced,
         w,
         h,
-        layout.visGlobe
+        layout.visGlobe,
+        { dotScale: heroDotScale, tiltRScale: heroTiltRScale }
       );
     } else {
       setHeroGlobeMirrorState(null);
@@ -458,5 +511,14 @@ export function mountGlobalSea(canvas) {
   }
 
   build();
-  return createLoop({ canvas, render, onResize: build });
+  return createLoop({
+    canvas,
+    render,
+    onResize: build,
+    /** Fixed full-viewport background — bypass the IO gate so iOS Safari's
+        scroll-time `isIntersecting=false` flap can't freeze the simulation. */
+    alwaysOnScreen: true,
+    /** Render up to ProMotion 120 Hz; throttles 240 Hz monitors down to 120. */
+    targetFps: 120,
+  });
 }

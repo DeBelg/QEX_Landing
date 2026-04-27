@@ -13,8 +13,17 @@
     />
     <title>QEX Global</title>
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <script type="module" crossorigin src="./assets/main-DZMT4Vgp.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/main-BaTFIxym.css">
+    <!-- First paint: background + text color before full CSS loads -->
+    <style>
+      html,
+      body {
+        margin: 0;
+        background: #000;
+        color: #f4f7fb;
+      }
+    </style>
+    <script type="module" crossorigin src="./assets/main-CFUzKTNE.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/main-BBxkGciB.css">
   </head>
   <body>
     <main id="app">
@@ -35,12 +44,8 @@
         <div class="view__content catcher__band">
           <h1 class="catcher__title">
             <span class="catcher__brand">QEX</span>
-
           </h1>
           <p class="catcher__tagline">Post-Quantum.</p>
-  
-            <span></span>
-          </a>
         </div>
       </section>
 

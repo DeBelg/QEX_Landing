@@ -38,6 +38,10 @@ export function drawWireframeParticleGlobe(
   const tiltCount = opts.tiltCount ?? 6;
   const steps = opts.steps ?? 56;
   const backdropMul = opts.backdropMul ?? 1;
+  /** Scales the per-vertex dot pixel size so a small hero stays as airy as desktop. */
+  const dotScale = opts.dotScale ?? 1;
+  /** Scales the great-circle "aerial" arc radius (>1 makes them extend past the sphere edge). */
+  const tiltRScale = opts.tiltRScale ?? 1;
 
   const vf = Math.max(0, Math.min(1, visFade));
   ctx.save();
@@ -86,11 +90,14 @@ export function drawWireframeParticleGlobe(
   }
 
   const lineBaseA = 0.2 + (1 - depth01) * 0.14;
-  const shortSide = Math.min(w, h);
-  /** Faint great circles read poorly under dense vertex dots on small screens. */
-  const tiltArcBoost =
-    shortSide < 520 || R < 36 ? 1.48 : shortSide < 720 ? 1.15 : 1;
-  const tiltLineW = shortSide < 520 ? Math.min(1.32, 0.75 + 520 / Math.max(shortSide, 280)) : 0.75;
+  /**
+   * Gate small-globe visual boosts on **R**, not the viewport, so the mobile
+   * hero (~65 px) renders with the same airy look as the desktop hero (~189 px).
+   * Team mirror canvases (R≈32) still get the boost so faint arcs read on cards.
+   */
+  const tiltArcBoost = R < 38 ? 1.48 : R < 64 ? 1.15 : 1;
+  const tiltLineW =
+    R < 38 ? Math.min(1.32, 0.75 + 36 / Math.max(R, 22)) : 0.75;
 
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
@@ -140,32 +147,40 @@ export function drawWireframeParticleGlobe(
     const br = Math.round(90 + cool * 145);
     const bg = Math.round(170 + cool * 80);
     const bb = Math.round(225 + cool * 35);
-    const pr = 0.75 + ((p.z + R) / (2 * R)) * 1.65;
+    const pr = (0.75 + ((p.z + R) / (2 * R)) * 1.65) * dotScale;
     const dotA =
       (0.35 + ndotl * 0.5) * (0.58 + ((p.z + R) / (2 * R)) * 0.5);
     ctx.fillStyle = `rgba(${br}, ${bg}, ${bb}, ${dotA})`;
     ctx.beginPath();
-    ctx.arc(p.sx, p.sy, pr * 0.52, 0, Math.PI * 2);
+    ctx.arc(p.sx, p.sy, Math.max(0.35, pr * 0.52), 0, Math.PI * 2);
     ctx.fill();
     if (ndotl > 0.45) {
       ctx.fillStyle = `rgba(255, 255, 255, ${0.18 + 0.2 * ndotl})`;
       ctx.beginPath();
-      ctx.arc(p.sx - pr * 0.14, p.sy - pr * 0.14, pr * 0.16, 0, Math.PI * 2);
+      ctx.arc(
+        p.sx - pr * 0.14,
+        p.sy - pr * 0.14,
+        Math.max(0.18, pr * 0.16),
+        0,
+        Math.PI * 2
+      );
       ctx.fill();
     }
   }
 
-  /* Great circles (“other side” arcs) on top of vertices so they stay visible on mobile. */
+  /* Great circles (“aerial” arcs). On small heroes they extend past the sphere
+     edge (tiltRScale > 1) so they read as orbits / antennae, not just chords. */
   ctx.lineWidth = tiltLineW;
+  const arcR = R * tiltRScale;
   for (let ti = 0; ti < tiltCount; ti++) {
     const tilt = (ti / tiltCount) * Math.PI;
     const roll = ti * 1.17 + angle * 0.5;
     ctx.beginPath();
     for (let s = 0; s <= steps; s++) {
       const u = (s / steps) * Math.PI * 2;
-      const x = R * Math.cos(u) * Math.cos(tilt);
-      const y = R * Math.sin(u);
-      const z = R * Math.cos(u) * Math.sin(tilt);
+      const x = arcR * Math.cos(u) * Math.cos(tilt);
+      const y = arcR * Math.sin(u);
+      const z = arcR * Math.cos(u) * Math.sin(tilt);
       const p0 = rotateY(x, y, z, roll);
       const pr = project(p0.x, p0.y, p0.z);
       if (s === 0) ctx.moveTo(pr.sx, pr.sy);

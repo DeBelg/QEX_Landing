@@ -62,12 +62,22 @@ body {
   overflow-x: hidden;
 }
 
+/* Pin to `--app-h` — a JS-locked pixel value (see main.js) that captures the
+   first-seen viewport height and only ever grows. Once the iOS URL bar
+   collapses on first scroll we lock in the largest viewport, and from that
+   moment on no bar transition can reflow the page. `100lvh` is the fallback
+   for any context where the JS hasn't run yet (older or no-JS environments).
+   `overscroll-behavior: none` also kills the rubber-band that *triggers* the
+   bar transition. */
 body {
   min-height: 100%;
-  min-height: 100dvh;
+  min-height: 100vh;
+  min-height: 100lvh;
+  min-height: var(--app-h, 100lvh);
   min-height: -webkit-fill-available;
   scroll-behavior: smooth;
   touch-action: manipulation;
+  overscroll-behavior-y: none;
 }
 
 img,
@@ -114,24 +124,41 @@ button {
   z-index: 1;
 }
 
-/* One fixed canvas: continuous sea in document space (see waves-fx.js) */
+/* One fixed canvas: continuous sea in document space (see waves-fx.js). Sized
+   to `--app-h` (see main.js) so its height is locked at the same pixel value
+   as the body and views — iOS URL-bar transitions can't resize the canvas
+   mid-frame. `translateZ(0)` + `will-change` keep it on its own composited
+   layer so iOS doesn't snapshot the canvas during inertial scroll. */
 .global-sea {
   position: fixed;
   inset: 0;
   width: 100%;
   max-width: none !important;
-  height: 100dvh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100lvh;
+  height: var(--app-h, 100lvh);
+  min-height: 100vh;
+  min-height: 100lvh;
+  min-height: var(--app-h, 100lvh);
   min-height: -webkit-fill-available;
   z-index: 0;
   pointer-events: none;
+  transform: translateZ(0);
+  will-change: transform;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
 }
 
 .view {
   position: relative;
   z-index: 1;
   width: 100%;
-  min-height: 100svh;
+  /* Pin to `--app-h` (JS-locked, only grows). With this, every section is
+     exactly the largest viewport ever seen, so iOS URL-bar transitions can't
+     change the layout — only how much of it is visible. */
+  min-height: 100vh;
+  min-height: 100lvh;
+  min-height: var(--app-h, 100lvh);
   padding: var(--pad-y) var(--pad-x);
   display: flex;
   align-items: center;
@@ -270,48 +297,23 @@ button {
 }
 
 .catcher__tagline {
-  margin: 0 0 3rem;
+  margin: 0;
   font-size: clamp(1rem, 3vw, 1.125rem);
   opacity: 0.7;
 }
 
-.catcher__scroll {
-  position: absolute;
-  left: 50%;
-  bottom: clamp(1.5rem, 4vh, 2.5rem);
-  transform: translateX(-50%);
-  width: 26px;
-  height: 42px;
-  border: 1.5px solid currentColor;
-  border-radius: 14px;
-  opacity: 0;
-  transition: opacity 200ms var(--ease-out);
+/* Catcher fades out as view-a leaves the viewport (waves-fx.js writes
+   `--catcher-fade` from the same intersection fraction we already compute for
+   the sphere). This gives a symmetric hand-off into view-b's fade-in. The
+   render loop updates the variable every frame (≤120 Hz), so no CSS transition
+   is needed — adding one would just lag the value behind the scroll. */
+.view--catcher .view__content {
+  opacity: var(--catcher-fade, 1);
+  will-change: opacity;
 }
-.catcher__scroll:hover {
-  opacity: 1;
-}
-.catcher__scroll span {
-  position: absolute;
-  top: 6px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 3px;
-  height: 8px;
-  border-radius: 2px;
-  background: currentColor;
-  animation: scroll-pulse 1.6s var(--ease-out) infinite;
-}
-@keyframes scroll-pulse {
-  0% {
-    transform: translate(-50%, 0);
+@media (prefers-reduced-motion: reduce) {
+  .view--catcher .view__content {
     opacity: 1;
-  }
-  60% {
-    transform: translate(-50%, 16px);
-    opacity: 0;
-  }
-  100% {
-    opacity: 0;
   }
 }
 
