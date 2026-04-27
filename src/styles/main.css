@@ -48,6 +48,13 @@ html {
      some engines once body content is taller than one screen — use min-height. */
   min-height: 100%;
   -webkit-text-size-adjust: 100%;
+  /*
+   Chromium/Blink: `overflow-x: hidden` on `body` (or paired on html+body) can make
+   the vertical overflow edge compute incorrectly so the document won’t scroll.
+   Keep horizontal clipping off `body`; clip at `html` + `#app` only.
+  */
+  overflow-x: clip;
+  overflow-y: auto;
 }
 
 html,
@@ -61,7 +68,6 @@ body {
   line-height: 1.55;
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
-  overflow-x: hidden;
 }
 
 /* Pin to `--app-h` — a JS-locked pixel value (see main.js) that captures the
@@ -77,6 +83,8 @@ body {
   min-height: 100lvh;
   min-height: var(--app-h, 100lvh);
   min-height: -webkit-fill-available;
+  overflow-x: visible;
+  overflow-y: visible;
   scroll-behavior: smooth;
   touch-action: manipulation;
   overscroll-behavior-y: none;
@@ -124,6 +132,8 @@ button {
   flex-direction: column;
   position: relative;
   z-index: 1;
+  width: 100%;
+  overflow-x: clip;
 }
 
 /* One fixed canvas: continuous sea in document space (see waves-fx.js). Sized
@@ -152,6 +162,7 @@ button {
 }
 
 .view {
+  flex-shrink: 0;
   position: relative;
   z-index: 1;
   width: 100%;
