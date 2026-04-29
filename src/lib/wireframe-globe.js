@@ -42,6 +42,12 @@ export function drawWireframeParticleGlobe(
   const dotScale = opts.dotScale ?? 1;
   /** Scales the great-circle "aerial" arc radius (>1 makes them extend past the sphere edge). */
   const tiltRScale = opts.tiltRScale ?? 1;
+  /** Allows the hero to override the default small-globe arc emphasis. */
+  const tiltArcBoost = opts.tiltArcBoost ?? (R < 38 ? 1.48 : R < 64 ? 1.15 : 1);
+  /** Allows the hero to override the default small-globe arc stroke width. */
+  const tiltLineW =
+    opts.tiltLineW ??
+    (R < 38 ? Math.min(1.32, 0.75 + 36 / Math.max(R, 22)) : 0.75);
 
   const vf = Math.max(0, Math.min(1, visFade));
   ctx.save();
@@ -90,15 +96,6 @@ export function drawWireframeParticleGlobe(
   }
 
   const lineBaseA = 0.2 + (1 - depth01) * 0.14;
-  /**
-   * Gate small-globe visual boosts on **R**, not the viewport, so the mobile
-   * hero (~65 px) renders with the same airy look as the desktop hero (~189 px).
-   * Team mirror canvases (R≈32) still get the boost so faint arcs read on cards.
-   */
-  const tiltArcBoost = R < 38 ? 1.48 : R < 64 ? 1.15 : 1;
-  const tiltLineW =
-    R < 38 ? Math.min(1.32, 0.75 + 36 / Math.max(R, 22)) : 0.75;
-
   ctx.lineJoin = 'round';
   ctx.lineCap = 'round';
   ctx.lineWidth = 1.15;

@@ -123,7 +123,6 @@
       <!-- View C — Threat -->
       <section id="view-c" class="view view--threat view--dark" data-view="c">
         <div class="view__content">
-          <p class="eyebrow eyebrow--alert">Threat</p>
           <h2 class="view__title">Q-Day is a systemic financial risk.</h2>
           <p class="view__body">
             Adversaries are harvesting encrypted data for future
@@ -333,13 +332,24 @@
           <div class="subscribe__contact-copy">
             <h3 class="subscribe__contact-title">Collaborate?</h3>
             <p class="subscribe__contact-body">
-              Want to discuss your project with us, or explore other avenues directly;
-              Mail us and we'll get back to you quickly.
+              Want to discuss your project with us, or explore other avenues; <br>
+              Mail us directly and we'll get back to you quickly.
             </p>
           </div>
-          <a class="subscribe__btn subscribe__contact" href="mailto:michiel@qex.global">
+          <a
+            class="subscribe__btn subscribe__contact"
+            href="mailto:michiel@qex.global"
+            data-copy-email="michiel@qex.global"
+          >
             Get in touch
           </a>
+          <p
+            class="subscribe__contact-toast"
+            data-copy-toast
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          ></p>
         </div>
       </section>
 

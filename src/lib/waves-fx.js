@@ -125,9 +125,10 @@ function landingMass(viewA, w, h, depth01, scrollY, scrollT) {
     m * (0.175 - depth01 * 0.048) * (1 - sinkProgress * 0.06)
   );
 
-  /** Viewport: start on the vertical centerline, vertically centered; sink toward bottom with scroll. */
+  /** Viewport: on mobile, split the hero closer to halves: copy sits a bit higher,
+      while the sphere still starts low enough to keep breathing room underneath. */
   const padY = R + 18;
-  const startY = h * 0.5;
+  const startY = narrow ? h * 0.62 : h * 0.5;
   const endY = Math.max(startY + 40, h - padY - 10);
   let cy = startY + (endY - startY) * sinkProgress;
 
@@ -483,18 +484,15 @@ export function mountGlobalSea(canvas) {
         reduced,
       });
       /**
-       * Particle dots are pixel-sized; without scaling they look ~3× chunkier
-       * on the mobile hero (R≈65) than on desktop (R≈189). Scale dots with R
-       * so the wireframe stays as airy on small screens. Capped at 1 so the
-       * desktop look (calibrated for R≈190) is preserved exactly.
+       * Keep mobile vertex dots visibly present without letting them bulk up to
+       * the heavier desktop calibration.
        */
-      const heroDotScale = Math.max(0.45, Math.min(1, layout.R / 130));
+      const heroDotScale = Math.max(0.7, Math.min(1, layout.R / 115));
       /**
-       * On small/mobile heroes, draw the great-circle "aerial" arcs at 1.5× the
-       * sphere radius so they extend past the sphere edge and read as orbits
-       * instead of melting into the wireframe. Desktop keeps the spherical 1.0.
+       * Keep mobile "aerial" arcs slightly proud of the sphere, but closer than
+       * before so they read as part of the globe rather than a faint outer halo.
        */
-      const heroTiltRScale = layout.R < 80 ? 1.5 : 1;
+      const heroTiltRScale = layout.R < 80 ? 1.22 : 1;
       drawWireframeParticleGlobe(
         ctx,
         layout.cx,

@@ -442,7 +442,7 @@ button {
     margin-right: auto;
     text-align: center;
     max-width: var(--content-max);
-    padding-top: min(10vh, 4.5rem);
+    padding-top: min(6vh, 2.75rem);
   }
 }
 
@@ -708,6 +708,30 @@ button {
   background: rgba(76, 201, 255, 0.3);
 }
 
+.subscribe__contact-toast {
+  min-height: 1rem;
+  margin: 0.45rem auto 0;
+  font-size: 0.72rem;
+  line-height: 1.2;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-blue-200);
+  opacity: 0;
+  transform: translateY(4px);
+  transition:
+    opacity 180ms var(--ease-out),
+    transform 180ms var(--ease-out);
+}
+
+.subscribe__contact-toast[data-visible="true"] {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.subscribe__contact-toast[data-state="error"] {
+  color: #ff8aa1;
+}
+
 .subscribe__msg {
   min-height: 1.25rem;
   margin: 0;
@@ -810,6 +834,20 @@ button {
   .view:not(.view--catcher) .view__content > * {
     opacity: 1;
     transform: none;
+  }
+}
+
+@media (max-width: 839px) {
+  .about-news__card,
+  .threat-carousel__card,
+  .team__highlight,
+  .team__card {
+    background: linear-gradient(
+      145deg,
+      rgba(255, 255, 255, 0.22),
+      rgba(255, 255, 255, 0.08)
+    );
+    border-color: rgba(255, 255, 255, 0.3);
   }
 }
 
