@@ -8,7 +8,7 @@
   /* Brand palette */
   --c-blue-100: #d8f1ff;
   --c-blue-200: #9ddcff;
-  --c-blue-300: #4cc9ff;
+  --c-blue-300: #01092f;
   --c-blue-400: #1aa6e8;
   --c-blue-500: #0a7fbf;
   --c-teal-300: #4cf0d4;
@@ -131,7 +131,8 @@ button {
   display: flex;
   flex-direction: column;
   position: relative;
-  z-index: 1;
+  z-index: 0;
+  isolation: isolate;
   width: 100%;
   overflow-x: clip;
 }
@@ -153,7 +154,7 @@ button {
   min-height: 100lvh;
   min-height: var(--app-h, 100lvh);
   min-height: -webkit-fill-available;
-  z-index: 0;
+  z-index: -1;
   pointer-events: none;
   transform: translateZ(0);
   will-change: transform;
@@ -196,7 +197,7 @@ button {
 
 .view__content {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   width: 100%;
   max-width: var(--content-max);
   margin: 0 auto;
@@ -227,6 +228,75 @@ button {
   margin: 0 auto;
   max-width: 32rem;
   font-size: clamp(1rem, 2.4vw, 1.0625rem);
+  color: var(--c-ink-soft);
+}
+
+/* ---------------------------------------------------------------------------
+   View B — About news references
+   --------------------------------------------------------------------------- */
+
+.about-news {
+  margin-top: 2rem;
+  text-align: left;
+}
+
+.about-news__eyebrow {
+  margin: 0 0 0.75rem;
+  font-family: var(--ff-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--c-ink-mute);
+}
+
+.about-news__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.about-news__card {
+  background: linear-gradient(
+    145deg,
+    rgba(18, 28, 52, 0.68),
+    rgba(10, 17, 34, 0.74)
+  );
+  border: 1px solid rgba(184, 214, 255, 0.26);
+  border-radius: var(--radius);
+  padding: 0.9rem 1rem;
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  backdrop-filter: blur(12px) saturate(130%);
+}
+
+.about-news__link {
+  display: inline-block;
+  color: var(--c-ink);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.about-news__link:hover,
+.about-news__link:focus-visible {
+  color: var(--c-blue-200);
+}
+
+.about-news__source {
+  margin: 0.45rem 0 0;
+  font-family: var(--ff-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ink-mute);
+}
+
+.about-news__date {
+  margin-left: 0.5rem;
   color: var(--c-ink-soft);
 }
 
@@ -278,12 +348,17 @@ button {
   flex-direction: column;
   gap: 0.25rem;
   margin: 0 0 1rem;
+  position: relative;
+  z-index: 4;
   font-weight: 700;
   letter-spacing: -0.04em;
   line-height: 0.95;
 }
 .catcher__brand {
+  position: relative;
+  z-index: 5;
   font-size: clamp(3.5rem, 18vw, 7rem);
+  white-space: nowrap;
   background: linear-gradient(
     180deg,
     var(--c-blue-300) 0%,
@@ -346,9 +421,18 @@ button {
 .team__card {
   position: relative;
   padding: 1.25rem 0.75rem 1rem;
-  background: var(--c-bg-card);
-  border: 1px solid var(--c-border);
+  background: linear-gradient(
+    145deg,
+    rgba(18, 28, 52, 0.68),
+    rgba(10, 17, 34, 0.74)
+  );
+  border: 1px solid rgba(184, 214, 255, 0.26);
   border-radius: var(--radius);
+  box-shadow:
+    0 10px 26px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  -webkit-backdrop-filter: blur(12px) saturate(130%);
+  backdrop-filter: blur(12px) saturate(130%);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -456,7 +540,7 @@ button {
 
 .footer {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   background: var(--c-bg-soft);
   border-top: 1px solid var(--c-border);
   padding: 2rem var(--pad-x) calc(2rem + env(safe-area-inset-bottom));
@@ -466,6 +550,8 @@ button {
 .footer__inner {
   max-width: var(--content-max);
   margin: 0 auto;
+  position: relative;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   gap: 0.6rem;
@@ -539,5 +625,11 @@ button {
   .view:not(.view--catcher) .view__content > * {
     opacity: 1;
     transform: none;
+  }
+}
+
+@media (min-width: 840px) {
+  .about-news__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

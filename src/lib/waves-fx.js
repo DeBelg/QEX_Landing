@@ -20,6 +20,7 @@ import {
 } from './canvas-utils.js';
 import { drawShadedSphere } from './sphere.js';
 import { drawWireframeParticleGlobe } from './wireframe-globe.js';
+import { computeHeroSpin } from './hero-spin.js';
 import {
   flushGlobeMirrorRenders,
   setHeroGlobeMirrorState,
@@ -469,8 +470,12 @@ export function mountGlobalSea(canvas) {
     drawSparseNodes(t, sphereEvery, baseRad, grav, scrollY, padX);
 
     if (layout && layout.visGlobe > 0.004) {
-      const idleSpin = reduced ? 0 : now * (0.00028 + depth01 * 0.00022);
-      const spin = layout.rollAngle + idleSpin;
+      const spin = computeHeroSpin({
+        reduced,
+        now,
+        depth01,
+        rollAngle: layout.rollAngle,
+      });
       setHeroGlobeMirrorState({
         spin,
         depth01,
