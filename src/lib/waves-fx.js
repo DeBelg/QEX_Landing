@@ -266,7 +266,7 @@ function seaField(vx, vy, t, w, h, grav, docY) {
   const crest = Math.max(0, main);
 
   const tintRaw =
-    Math.floor(vx * 0.018) + Math.floor(docY * 0.012);
+    Math.floor(vx * 0.010) + Math.floor(docY * 0.007);
   const tintIdx =
     ((tintRaw % TINTS.length) + TINTS.length) % TINTS.length;
 
@@ -297,10 +297,11 @@ export function mountGlobalSea(canvas) {
     ({ w, h, dpr } = fitCanvas(canvas));
     const narrow = w < 480;
     /** Mobile flow: fewer lines + sparser dots → more whitespace, less visual chatter. */
-    nHoriz = narrow ? 6 : 9;
-    nVert = narrow ? 7 : 12;
-    sampleDx = Math.max(2.8, Math.min(4.5, w / 175));
-    sampleDy = Math.max(3.2, Math.min(5, h / 150));
+    nHoriz = narrow ? 5 : 7;
+    nVert = narrow ? 5 : 9;
+    /** Wider sample steps = smoother curves, less “wire” density on screen. */
+    sampleDx = Math.max(3.4, Math.min(5.5, w / 135));
+    sampleDy = Math.max(3.8, Math.min(6, h / 125));
   }
 
   function marginY() {
@@ -368,7 +369,7 @@ export function mountGlobalSea(canvas) {
   ) {
     const [lr, lg, lb] = lineRgb;
     ctx.lineWidth = lineWidth;
-    ctx.strokeStyle = `rgba(${lr}, ${lg}, ${lb}, ${lineAlpha * 0.85})`;
+    ctx.strokeStyle = `rgba(${lr}, ${lg}, ${lb}, ${lineAlpha * 0.78})`;
 
     for (let j = 0; j < nVert; j++) {
       const x0 = xRestForCol(j);
@@ -403,7 +404,7 @@ export function mountGlobalSea(canvas) {
       for (let x = -padX; x <= w + padX + 0.5; x += sampleDx) {
         const s = seaField(x, y0, t, w, h, grav, docY0);
         const draw =
-          step % sphereEvery === 0 || s.crest > 0.72;
+          step % sphereEvery === 0 || s.crest > 0.82;
         step++;
         if (!draw) continue;
 
@@ -413,8 +414,8 @@ export function mountGlobalSea(canvas) {
         const wg = Math.round(tg + (255 - tg) * cr * 0.52);
         const wb = Math.round(tb + (255 - tb) * cr * 0.52);
         const depth = depthForSample(y0, h);
-        const alpha = (0.34 + depth * 0.38) * (0.52 + cr * 0.48);
-        const rad = baseRad + cr * 1.05;
+        const alpha = (0.22 + depth * 0.28) * (0.45 + cr * 0.42);
+        const rad = baseRad + cr * 0.85;
         drawShadedSphere(ctx, s.px, s.py, rad, [wr, wg, wb], alpha, cr * 0.82);
       }
     }
@@ -451,23 +452,23 @@ export function mountGlobalSea(canvas) {
 
     const t = reduced ? 0 : now * 1;
     const lineRgb = [70, 178, 232];
-    const lineAlpha = 0.26;
-    const lineWidth = 1.05;
+    const lineAlpha = 0.19;
+    const lineWidth = 0.92;
 
     drawHorizontalLines(t, lineRgb, lineAlpha, lineWidth, grav, scrollY, padX);
     drawVerticalLines(
       t,
       lineRgb,
-      lineAlpha * 0.82,
-      lineWidth * 0.92,
+      lineAlpha * 0.72,
+      lineWidth * 0.88,
       grav,
       scrollY,
       padY
     );
 
-    /** Mobile node stride bumped from 4 → 6 so the bead row reads as scattered, not solid. */
-    const sphereEvery = w < 520 ? 6 : 3;
-    const baseRad = Math.max(1.25, sampleDx * 0.34);
+    /** Skip more nodes so beads read as accents, not a second grid. */
+    const sphereEvery = w < 520 ? 8 : 5;
+    const baseRad = Math.max(1.1, sampleDx * 0.29);
     drawSparseNodes(t, sphereEvery, baseRad, grav, scrollY, padX);
 
     if (layout && layout.visGlobe > 0.004) {
